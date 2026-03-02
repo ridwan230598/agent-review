@@ -39,6 +39,7 @@ export const ProviderDiagnosticSeveritySchema = z.enum([
 export const ProviderDiagnosticCodeSchema = z.enum([
   'binary_missing',
   'auth_missing',
+  'auth_available',
   'invalid_model_id',
   'unsupported_reasoning_effort',
   'provider_unavailable',
@@ -75,10 +76,20 @@ export const ReviewFindingSchema = z.strictObject({
   confidenceScore: z.number().min(0).max(1),
   codeLocation: z.strictObject({
     absoluteFilePath: z.string().min(1),
-    lineRange: z.strictObject({
-      start: z.number().int().positive(),
-      end: z.number().int().positive(),
-    }),
+    lineRange: z
+      .strictObject({
+        start: z.number().int().positive(),
+        end: z.number().int().positive(),
+      })
+      .superRefine((value, context) => {
+        if (value.end < value.start) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'end must be >= start',
+            path: ['end'],
+          });
+        }
+      }),
   }),
   fingerprint: z.string().min(1),
 });

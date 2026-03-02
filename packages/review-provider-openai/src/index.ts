@@ -175,7 +175,7 @@ export class OpenAICompatibleReviewProvider implements ReviewProvider {
     diagnostics.push(
       hasGatewayKey
         ? {
-            code: 'provider_unavailable',
+            code: 'auth_available',
             ok: true,
             severity: 'info',
             detail: 'gateway auth detected',
@@ -194,7 +194,7 @@ export class OpenAICompatibleReviewProvider implements ReviewProvider {
     diagnostics.push(
       hasOpenRouterKey
         ? {
-            code: 'provider_unavailable',
+            code: 'auth_available',
             ok: true,
             severity: 'info',
             detail: 'openrouter auth detected',

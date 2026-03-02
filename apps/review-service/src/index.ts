@@ -222,13 +222,13 @@ app.post('/v1/review/start', async (c) => {
       listeners: new Set(),
     };
     cleanupReviewRecords();
-    records.set(reviewId, record);
 
     if (delivery === 'detached' || request.detached) {
       const detached = await worker.startDetached(request);
       record.detachedRunId = detached.runId;
       record.status = detached.status === 'running' ? 'running' : 'queued';
       record.updatedAt = Date.now();
+      records.set(reviewId, record);
       emit(record, { type: 'enteredReviewMode', review: 'review requested' });
       return c.json(
         {
@@ -240,6 +240,7 @@ app.post('/v1/review/start', async (c) => {
       );
     }
 
+    records.set(reviewId, record);
     await runInline(record);
     return c.json(
       {
@@ -328,9 +329,26 @@ app.get('/v1/review/:reviewId/events', async (c) => {
       });
     }, 15000);
 
-    stream.onAbort(() => {
+    let cleanedUp = false;
+    const cleanup = () => {
+      if (cleanedUp) {
+        return;
+      }
+      cleanedUp = true;
       clearInterval(heartbeat);
       record.listeners.delete(send);
+    };
+
+    stream.onAbort(() => {
+      cleanup();
+    });
+
+    const streamWithError = stream as {
+      onError?: (callback: (error: unknown) => void) => void;
+    };
+    streamWithError.onError?.((error) => {
+      console.error('[review-service] events stream error', error);
+      cleanup();
     });
   });
 });
@@ -342,17 +360,17 @@ app.get('/v1/review/:reviewId/artifacts/:format', (c) => {
   }
 
   const allowedFormats = ['sarif', 'json', 'markdown'] as const;
-  const formatParam = c.req.param('format');
-  const format = allowedFormats.find((value) => value === formatParam);
-  if (!format) {
+  const formatRaw = c.req.param('format');
+  if (!allowedFormats.includes(formatRaw as (typeof allowedFormats)[number])) {
     return c.json(
       {
-        error: `artifact format must be one of: ${allowedFormats.join(', ')}`,
+        error: `invalid artifact format ${formatRaw}`,
       },
       400
     );
   }
 
+  const format = formatRaw as 'sarif' | 'json' | 'markdown';
   const artifact = record.result.artifacts[format];
   if (!artifact) {
     return c.json({ error: `artifact format ${format} not generated` }, 404);

@@ -42,8 +42,8 @@ export async function makeRepo(): Promise<{
 }
 
 export function makeProvider(
-  id: ReviewProvider['id'],
-  raw: unknown
+  raw: unknown,
+  id: ReviewProvider['id'] = 'codexDelegate'
 ): ReviewProvider {
   return {
     id,

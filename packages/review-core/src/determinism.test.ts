@@ -6,23 +6,26 @@ import { makeProvider, makeRepo } from './test-helpers.js';
 function makeDeterministicProvider(
   repoPath: string
 ): ReturnType<typeof makeProvider> {
-  return makeProvider('codexDelegate', {
-    findings: [
-      {
-        title: '[P1] Value constant changed without tests',
-        body: 'This change modifies behavior and should include a test update.',
-        confidence_score: 0.9,
-        priority: 1,
-        code_location: {
-          absolute_file_path: join(repoPath, 'file.ts'),
-          line_range: { start: 1, end: 1 },
+  return makeProvider(
+    {
+      findings: [
+        {
+          title: '[P1] Value constant changed without tests',
+          body: 'This change modifies behavior and should include a test update.',
+          confidence_score: 0.9,
+          priority: 1,
+          code_location: {
+            absolute_file_path: join(repoPath, 'file.ts'),
+            line_range: { start: 1, end: 1 },
+          },
         },
-      },
-    ],
-    overall_correctness: 'patch is incorrect',
-    overall_explanation: 'A likely regression exists.',
-    overall_confidence_score: 0.85,
-  });
+      ],
+      overall_correctness: 'patch is incorrect',
+      overall_explanation: 'A likely regression exists.',
+      overall_confidence_score: 0.85,
+    },
+    'codexDelegate'
+  );
 }
 
 describe('core determinism and lifecycle metadata', () => {

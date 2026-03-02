@@ -121,7 +121,7 @@ export class CodexDelegateProvider implements ReviewProvider {
       .catch(() => false);
     if (hasEnvToken || hasAuthFile) {
       diagnostics.push({
-        code: 'auth_missing',
+        code: 'auth_available',
         ok: true,
         severity: 'info',
         detail: 'codex auth signal detected (env token or ~/.codex/auth.json)',

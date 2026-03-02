@@ -44,8 +44,8 @@ describe('runReview', () => {
         },
         {
           providers: {
-            codexDelegate: makeProvider('codexDelegate', raw),
-            openaiCompatible: makeProvider('openaiCompatible', raw),
+            codexDelegate: makeProvider(raw, 'codexDelegate'),
+            openaiCompatible: makeProvider(raw, 'openaiCompatible'),
           },
         }
       );
@@ -91,8 +91,8 @@ describe('runReview', () => {
           },
           {
             providers: {
-              codexDelegate: makeProvider('codexDelegate', raw),
-              openaiCompatible: makeProvider('openaiCompatible', raw),
+              codexDelegate: makeProvider(raw, 'codexDelegate'),
+              openaiCompatible: makeProvider(raw, 'openaiCompatible'),
             },
           }
         )
@@ -140,8 +140,8 @@ describe('runReview', () => {
           },
           {
             providers: {
-              codexDelegate: makeProvider('codexDelegate', raw),
-              openaiCompatible: makeProvider('openaiCompatible', raw),
+              codexDelegate: makeProvider(raw, 'codexDelegate'),
+              openaiCompatible: makeProvider(raw, 'openaiCompatible'),
             },
           }
         )
