@@ -1,0 +1,56 @@
+# Product Requirements Document
+
+## Product
+
+Review Agent Platform (`v0.1.0`)
+
+## Problem Statement
+
+Engineering teams need repeatable, machine-readable code review output that can run locally, through services, and in detached workflows while preserving strong schema guarantees and actionable severity signaling.
+
+## Goals
+
+- Provide a consistent review contract across CLI and HTTP surfaces.
+- Support multiple provider backends through a shared interface.
+- Produce deterministic artifacts (`json`, `markdown`, `sarif`) for automation and human consumption.
+- Validate finding locations against changed diff lines to reduce false-positive locations.
+- Support detached execution for longer-running review tasks.
+
+## In Scope (Current Implementation)
+
+- CLI command surface (`run`, `models`, `doctor`, `completion`)
+- HTTP review service with start/status/events/cancel/artifacts endpoints
+- Detached worker integration with Workflow API and in-process fallback
+- Review targets: uncommitted changes, base branch comparison, commit SHA, custom instructions
+- Provider modes:
+  - Codex delegate (`codexDelegate`)
+  - OpenAI-compatible (`gateway:*`, `openrouter:*`)
+- Optional sandbox preflight for remote execution mode
+- Optional Convex metadata mirror writes
+
+## Out of Scope (Current Implementation)
+
+- Persistent datastore for review runs (service and worker stores are in-memory)
+- Authentication and authorization layer on HTTP endpoints
+- Multi-tenant isolation, quotas, and billing
+- Automatic retry/backoff orchestration for failed provider invocations
+- UI frontend for review authoring or visualization
+
+## Primary Users
+
+- Developers running local/CI checks through CLI
+- Internal services orchestrating review via HTTP API
+- Platform engineers integrating review outputs into downstream tooling
+
+## Success Criteria
+
+- A valid `ReviewRequest` yields a schema-valid `ReviewResult` or a clear failure.
+- Artifact generation is deterministic and available per requested output format.
+- Severity threshold mapping produces predictable process exit behavior.
+- Detached runs can be started, polled, and cancelled through service APIs.
+
+## Non-Functional Expectations
+
+- Strict runtime validation with Zod at API and provider boundaries
+- TypeScript strict mode across monorepo packages
+- Reproducible pipeline (`lint`, `typecheck`, `test`, `build`) through root scripts

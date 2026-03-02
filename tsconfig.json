@@ -1,0 +1,48 @@
+{
+  "extends": "./tsconfig.base.json",
+  "files": [],
+  "references": [
+    {
+      "path": "./apps/review-cli"
+    },
+    {
+      "path": "./apps/review-service"
+    },
+    {
+      "path": "./apps/review-worker"
+    },
+    {
+      "path": "./packages/review-types"
+    },
+    {
+      "path": "./packages/review-git"
+    },
+    {
+      "path": "./packages/review-prompts"
+    },
+    {
+      "path": "./packages/review-core"
+    },
+    {
+      "path": "./packages/review-provider-codex"
+    },
+    {
+      "path": "./packages/review-provider-openai"
+    },
+    {
+      "path": "./packages/review-sandbox-vercel"
+    },
+    {
+      "path": "./packages/review-reporters"
+    },
+    {
+      "path": "./packages/review-evals"
+    },
+    {
+      "path": "./packages/review-convex-bridge"
+    }
+  ],
+  "exclude": [
+    "opensrc"
+  ]
+}
