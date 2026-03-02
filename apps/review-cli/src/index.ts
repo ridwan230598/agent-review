@@ -51,6 +51,18 @@ function toOutputFormats(values: string[] | undefined): OutputFormat[] {
 }
 
 function parseTarget(options: RunCliOptions): ReviewTarget {
+  const selectedTargets = [
+    Boolean(options.uncommitted),
+    Boolean(options.base),
+    Boolean(options.commit),
+    Boolean(options.prompt),
+  ].filter(Boolean).length;
+  if (selectedTargets !== 1) {
+    throw new Error(
+      'Specify exactly one review target: --uncommitted | --base | --commit | --prompt'
+    );
+  }
+
   if (options.uncommitted) {
     return { type: 'uncommittedChanges' };
   }
@@ -107,6 +119,10 @@ function parseProviderModel(options: RunCliOptions): {
         model,
       };
     }
+    default:
+      throw new Error(
+        `invalid provider "${String(options.provider)}"; expected codex|gateway|openrouter`
+      );
   }
 }
 
@@ -278,11 +294,11 @@ async function main(): Promise<void> {
     .action(async (options: RunCliOptions) => {
       try {
         const code = await runCommand(options);
-        process.exit(code);
+        process.exitCode = code;
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         console.error(message);
-        process.exit(mapErrorToExitCode(error));
+        process.exitCode = mapErrorToExitCode(error);
       }
     });
 
@@ -322,7 +338,8 @@ async function main(): Promise<void> {
 
       const hasFailures = checks.some((check) => !check.ok);
       if (!hasFailures) {
-        process.exit(0);
+        process.exitCode = 0;
+        return;
       }
       const hasAuthOrProviderFailure = checks.some(
         (check) =>
@@ -331,7 +348,7 @@ async function main(): Promise<void> {
             check.name.includes('binary_missing') ||
             check.name.includes('provider_unavailable'))
       );
-      process.exit(hasAuthOrProviderFailure ? 3 : 2);
+      process.exitCode = hasAuthOrProviderFailure ? 3 : 2;
     });
 
   program

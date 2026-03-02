@@ -4,7 +4,7 @@ import type { ReviewResult } from '@review-agent/review-types';
 export type EvalCase = {
   name: string;
   result: ReviewResult;
-  threshold?: 'p0' | 'p1' | 'p2' | 'p3';
+  threshold?: Parameters<typeof computeExitCode>[1];
   expectedExitCode: number;
 };
 

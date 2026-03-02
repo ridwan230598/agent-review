@@ -3,6 +3,7 @@ import { basename } from 'node:path';
 import {
   type DiffChunk,
   type DiffContext,
+  buildChangedLineIndex,
   collectDiffForTarget,
   normalizeFilePath,
 } from '@review-agent/review-git';
@@ -290,6 +291,7 @@ function filterDiffContext(
     ...diff,
     chunks: filteredChunks,
     patch: filteredChunks.map((chunk) => chunk.patch).join('\n'),
+    changedLineIndex: buildChangedLineIndex(filteredChunks),
   };
 }
 
@@ -333,20 +335,6 @@ function collectProviderDiagnostics(
       remediation:
         'Remove --reasoning-effort or choose a provider/model that supports it.',
     });
-  }
-
-  if (request.provider === 'openaiCompatible' && request.model) {
-    const separator = request.model.indexOf(':');
-    if (separator < 1 || separator === request.model.length - 1) {
-      diagnostics.push({
-        code: 'invalid_model_id',
-        ok: false,
-        severity: 'error',
-        detail: `invalid model id "${request.model}". Expected "provider:model".`,
-        remediation:
-          'Use model ids like "gateway:openai/gpt-5" or "openrouter:openai/gpt-5".',
-      });
-    }
   }
 
   return diagnostics;
@@ -537,7 +525,18 @@ export async function runDoctorChecks(
       detail: `${providerId} provider is configured`,
     });
 
-    const diagnostics = (await provider.doctor?.()) ?? [];
+    let diagnostics: ProviderDiagnostic[] = [];
+    try {
+      diagnostics = (await provider.doctor?.()) ?? [];
+    } catch (error) {
+      checks.push({
+        name: `provider.${providerId}.doctor`,
+        ok: false,
+        detail: error instanceof Error ? error.message : String(error),
+      });
+      continue;
+    }
+
     for (const diagnostic of diagnostics) {
       const check: DoctorCheck = {
         name: `provider.${providerId}.${diagnostic.code}`,

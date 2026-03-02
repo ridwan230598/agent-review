@@ -5,10 +5,6 @@ import { runReview } from '@review-agent/review-core';
 import { createCodexDelegateProvider } from '@review-agent/review-provider-codex';
 import { createOpenAICompatibleReviewProvider } from '@review-agent/review-provider-openai';
 import {
-  createDefaultPolicy,
-  runInSandbox,
-} from '@review-agent/review-sandbox-vercel';
-import {
   type CorrelationIds,
   type LifecycleEvent,
   type ReviewRequest,
@@ -41,6 +37,53 @@ const providers = {
 const worker = new ReviewWorker();
 const bridge = new ConvexMetadataBridge();
 const records = new Map<string, ReviewRecord>();
+const MAX_RECORDS = 500;
+const MAX_RECORD_AGE_MS = 60 * 60 * 1000;
+const MAX_RECORD_EVENTS = 200;
+const RECORD_CLEANUP_INTERVAL_MS = 60_000;
+const terminalReviewStatuses: Set<ReviewStatus> = new Set([
+  'completed',
+  'failed',
+  'cancelled',
+]);
+
+function cleanupReviewRecords(): void {
+  const now = Date.now();
+  for (const [reviewId, record] of records) {
+    if (
+      terminalReviewStatuses.has(record.status) &&
+      now - record.updatedAt > MAX_RECORD_AGE_MS
+    ) {
+      record.listeners.clear();
+      record.events.length = 0;
+      records.delete(reviewId);
+    }
+  }
+
+  if (records.size <= MAX_RECORDS) {
+    return;
+  }
+
+  const evictOrder = [...records.entries()].sort(
+    (a, b) => a[1].updatedAt - b[1].updatedAt
+  );
+  for (const [reviewId, record] of evictOrder) {
+    if (records.size <= MAX_RECORDS) {
+      break;
+    }
+    if (terminalReviewStatuses.has(record.status)) {
+      record.listeners.clear();
+      record.events.length = 0;
+      records.delete(reviewId);
+    }
+  }
+}
+
+const recordsCleanupInterval = setInterval(
+  cleanupReviewRecords,
+  RECORD_CLEANUP_INTERVAL_MS
+);
+recordsCleanupInterval.unref?.();
 
 const StartRequestSchema = z.strictObject({
   request: ReviewRequestSchema,
@@ -97,9 +140,21 @@ function emit(
           },
         };
 
+  if (record.events.length >= MAX_RECORD_EVENTS) {
+    record.events.shift();
+  }
   record.events.push(enriched);
-  for (const listener of record.listeners) {
-    listener(enriched);
+
+  for (const listener of [...record.listeners]) {
+    try {
+      listener(enriched);
+    } catch (error) {
+      console.error(
+        `[review-service] dropping failed lifecycle listener for ${record.reviewId}:`,
+        error
+      );
+      record.listeners.delete(listener);
+    }
   }
   return enriched;
 }
@@ -111,21 +166,8 @@ async function runInline(record: ReviewRecord): Promise<void> {
     emit(record, { type: 'progress', message: 'starting inline review run' });
 
     if (record.request.executionMode === 'remoteSandbox') {
-      emit(record, {
-        type: 'progress',
-        message: 'initializing remote sandbox policy checks',
-      });
-      const sandboxPreflight = await runInSandbox({
-        commands: [{ cmd: 'git', args: ['--version'], cwd: '/vercel/sandbox' }],
-        policy: createDefaultPolicy(),
-      });
-      emit(
-        record,
-        {
-          type: 'progress',
-          message: `sandbox policy preflight completed (${sandboxPreflight.outputs.length} command)`,
-        },
-        { sandboxId: sandboxPreflight.sandboxId }
+      throw new Error(
+        'executionMode "remoteSandbox" is not yet supported for inline review execution'
       );
     }
 
@@ -166,6 +208,7 @@ app.post('/v1/review/start', async (c) => {
       events: [],
       listeners: new Set(),
     };
+    cleanupReviewRecords();
     records.set(reviewId, record);
 
     if (delivery === 'detached' || request.detached) {
@@ -208,12 +251,24 @@ app.get('/v1/review/:reviewId', async (c) => {
     ) {
       const detached = await worker.get(record.detachedRunId);
       if (detached) {
+        const previousStatus = record.status;
+        const previousError = record.error;
+
         record.status = detached.status;
         if (detached.status === 'completed' && detached.result) {
           record.result = detached.result;
+          if (record.result) {
+            record.updatedAt = Date.now();
+          }
         }
         if (detached.status === 'failed') {
           record.error = detached.error ?? 'detached run failed';
+          if (record.error !== previousError) {
+            record.updatedAt = Date.now();
+          }
+        }
+        if (record.status !== previousStatus) {
+          record.updatedAt = Date.now();
         }
       }
     }
@@ -286,6 +341,7 @@ app.post('/v1/review/:reviewId/cancel', async (c) => {
       record.status = 'cancelled';
       record.updatedAt = Date.now();
       emit(record, { type: 'cancelled' });
+      cleanupReviewRecords();
       return c.json({ reviewId, status: record.status });
     }
   }

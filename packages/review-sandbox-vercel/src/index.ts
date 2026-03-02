@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { resolve } from 'node:path';
+import { relative, resolve, sep } from 'node:path';
 import { type NetworkPolicy, Sandbox } from '@vercel/sandbox';
 import { z } from 'zod';
 
@@ -103,7 +103,7 @@ export function createDefaultPolicy(): SandboxPolicy {
     ]),
     networkProfile: 'deny_all',
     allowlistDomains: [],
-    envAllowlist: new Set(['CI', 'HOME', 'PATH']),
+    envAllowlist: new Set(['CI', 'HOME']),
     budget: {
       maxWallTimeMs: 15 * 60 * 1000,
       maxCommandTimeoutMs: 30 * 1000,
@@ -179,6 +179,21 @@ function redactSecrets(text: string): {
 export async function runInSandbox(
   input: SandboxExecutionInput
 ): Promise<SandboxExecutionOutput> {
+  const sandboxRoot = '/vercel/sandbox';
+
+  function sanitizeFilePath(filePath: string): string {
+    const resolvedPath = resolve(sandboxRoot, filePath);
+    const relativePath = relative(sandboxRoot, resolvedPath);
+    if (
+      relativePath.length === 0 ||
+      relativePath === '..' ||
+      relativePath.startsWith(`..${sep}`)
+    ) {
+      throw new Error(`file path escapes sandbox root: ${filePath}`);
+    }
+    return relativePath;
+  }
+
   const validatedCommands = input.commands.map((command) =>
     SandboxCommandSchema.parse(command)
   );
@@ -189,6 +204,18 @@ export async function runInSandbox(
       `sandbox command budget exceeded: ${validatedCommands.length} > ${budget.maxCommandCount}`
     );
   }
+
+  for (const command of validatedCommands) {
+    enforceCommandPolicy(command, input.policy);
+  }
+
+  const files =
+    input.files && input.files.length > 0
+      ? input.files.map((file) => ({
+          path: sanitizeFilePath(file.path),
+          content: file.content,
+        }))
+      : undefined;
 
   const sandbox = await Sandbox.create({
     runtime: input.runtime ?? 'node22',
@@ -209,19 +236,11 @@ export async function runInSandbox(
   };
 
   try {
-    if (input.files && input.files.length > 0) {
-      const files = input.files.map((file) => ({
-        path: resolve('/vercel/sandbox', file.path).replace(
-          '/vercel/sandbox/',
-          ''
-        ),
-        content: file.content,
-      }));
+    if (files && files.length > 0) {
       await sandbox.writeFiles(files);
     }
 
     for (const command of validatedCommands) {
-      enforceCommandPolicy(command, input.policy);
       const commandId = randomUUID();
       const commandStartedAt = Date.now();
       const timeoutMs = Math.min(
@@ -230,16 +249,19 @@ export async function runInSandbox(
       );
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), timeoutMs);
-
-      const finished = await sandbox.runCommand({
-        cmd: command.cmd,
-        args: command.args,
-        cwd: command.cwd,
-        env: sanitizeEnv(command, input.policy.envAllowlist),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeout);
+      const finished = await (async () => {
+        try {
+          return await sandbox.runCommand({
+            cmd: command.cmd,
+            args: command.args,
+            cwd: command.cwd,
+            env: sanitizeEnv(command, input.policy.envAllowlist),
+            signal: controller.signal,
+          });
+        } finally {
+          clearTimeout(timeout);
+        }
+      })();
 
       const stdoutSanitized = redactSecrets(await finished.stdout());
       const stderrSanitized = redactSecrets(await finished.stderr());

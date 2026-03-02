@@ -95,16 +95,31 @@ export function sortFindingsDeterministically(
 
 export function toSarif(result: ReviewResult): SarifReport {
   const findings = sortFindingsDeterministically(result.findings);
-  const rules = findings.map((finding) => {
+  const rulesById = new Map<
+    string,
+    {
+      id: string;
+      name: string;
+      shortDescription: { text: string };
+      fullDescription: { text: string };
+      defaultConfiguration: { level: SarifLevel };
+    }
+  >();
+
+  for (const finding of findings) {
     const priority = normalizePriority(finding.priority);
-    return {
-      id: findRuleId(finding),
-      name: finding.title,
-      shortDescription: { text: finding.title },
-      fullDescription: { text: finding.body },
-      defaultConfiguration: { level: priorityToSarifLevel(priority) },
-    };
-  });
+    const id = findRuleId(finding);
+    if (!rulesById.has(id)) {
+      rulesById.set(id, {
+        id,
+        name: finding.title,
+        shortDescription: { text: finding.title },
+        fullDescription: { text: finding.body },
+        defaultConfiguration: { level: priorityToSarifLevel(priority) },
+      });
+    }
+  }
+  const rules = [...rulesById.values()];
 
   const results = findings.map((finding) => {
     const priority = normalizePriority(finding.priority);
@@ -182,8 +197,9 @@ export function renderMarkdown(result: ReviewResult): string {
   lines.push('## Findings');
   for (const finding of findings) {
     const priority = finding.priority ?? 3;
+    const title = finding.title.replace(/^\[p\d\]\s*/i, '');
     lines.push('');
-    lines.push(`### [P${priority}] ${finding.title}`);
+    lines.push(`### [P${priority}] ${title}`);
     lines.push(`- File: \`${finding.codeLocation.absoluteFilePath}\``);
     lines.push(
       `- Lines: \`${finding.codeLocation.lineRange.start}-${finding.codeLocation.lineRange.end}\``

@@ -47,6 +47,21 @@ describe('convex metadata bridge', () => {
     expect(health.reachable).toBe(false);
   });
 
+  it('handles missing query clients via fallback', async () => {
+    const client = {
+      mutation: vi.fn(async () => undefined),
+    };
+    const bridge = new ConvexMetadataBridge({ client });
+
+    await expect(bridge.mirrorWrite('id', baseResult)).resolves.toBe(true);
+    await expect(bridge.readSummary('id')).resolves.toBeNull();
+
+    const health = await bridge.health();
+    expect(health.enabled).toBe(true);
+    expect(health.reachable).toBe(false);
+    expect(health.detail).toBe('Convex query client is unavailable');
+  });
+
   it('returns summary and reachable health with query support', async () => {
     const summary = {
       reviewId: 'id',

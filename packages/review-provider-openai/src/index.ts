@@ -95,7 +95,7 @@ export class OpenAICompatibleReviewProvider implements ReviewProvider {
   capabilities(): ReviewProviderCapabilities {
     return {
       jsonSchemaOutput: true,
-      reasoningControl: true,
+      reasoningControl: false,
       streaming: false,
     };
   }

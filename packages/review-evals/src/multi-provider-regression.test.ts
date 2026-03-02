@@ -18,13 +18,18 @@ async function makeRepo(): Promise<{
   cleanup: () => Promise<void>;
 }> {
   const cwd = await mkdtemp(join(tmpdir(), 'review-evals-regression-'));
-  await runGit(cwd, ['init', '--initial-branch=main']);
-  await runGit(cwd, ['config', 'user.name', 'Tester']);
-  await runGit(cwd, ['config', 'user.email', 'tester@example.com']);
-  await writeFile(join(cwd, 'file.ts'), 'export const value = 1;\n', 'utf8');
-  await runGit(cwd, ['add', 'file.ts']);
-  await runGit(cwd, ['commit', '-m', 'base']);
-  await writeFile(join(cwd, 'file.ts'), 'export const value = 2;\n', 'utf8');
+  try {
+    await runGit(cwd, ['init', '--initial-branch=main']);
+    await runGit(cwd, ['config', 'user.name', 'Tester']);
+    await runGit(cwd, ['config', 'user.email', 'tester@example.com']);
+    await writeFile(join(cwd, 'file.ts'), 'export const value = 1;\n', 'utf8');
+    await runGit(cwd, ['add', 'file.ts']);
+    await runGit(cwd, ['commit', '-m', 'base']);
+    await writeFile(join(cwd, 'file.ts'), 'export const value = 2;\n', 'utf8');
+  } catch (error) {
+    await rm(cwd, { recursive: true, force: true });
+    throw error;
+  }
   return {
     cwd,
     cleanup: async () => {

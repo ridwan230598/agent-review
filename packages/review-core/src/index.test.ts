@@ -3,11 +3,15 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
-import type { ReviewProvider } from '@review-agent/review-types';
+import type {
+  ProviderDiagnostic,
+  ReviewProvider,
+} from '@review-agent/review-types';
 import { describe, expect, it } from 'vitest';
 import {
   InvalidFindingLocationError,
   computeExitCode,
+  runDoctorChecks,
   runReview,
 } from './index.js';
 
@@ -137,5 +141,101 @@ describe('runReview', () => {
     } finally {
       await repo.cleanup();
     }
+  });
+
+  it('rejects findings from excluded paths after diff filtering', async () => {
+    const repo = await makeRepo();
+    try {
+      await writeFile(
+        join(repo.cwd, 'excluded.ts'),
+        'export const value = 3;\n',
+        'utf8'
+      );
+
+      const raw = {
+        findings: [
+          {
+            title: '[P1] Bad location',
+            body: 'Outside filtered scope.',
+            confidence_score: 0.8,
+            priority: 1,
+            code_location: {
+              absolute_file_path: join(repo.cwd, 'excluded.ts'),
+              line_range: { start: 1, end: 1 },
+            },
+          },
+        ],
+        overall_correctness: 'patch is incorrect',
+        overall_explanation: 'Bad.',
+        overall_confidence_score: 0.8,
+      };
+
+      await expect(
+        runReview(
+          {
+            cwd: repo.cwd,
+            target: { type: 'uncommittedChanges' },
+            provider: 'codexDelegate',
+            outputFormats: ['json'],
+            includePaths: ['file.ts'],
+          },
+          {
+            providers: {
+              codexDelegate: makeProvider(raw),
+              openaiCompatible: makeProvider(raw),
+            },
+          }
+        )
+      ).rejects.toBeInstanceOf(InvalidFindingLocationError);
+    } finally {
+      await repo.cleanup();
+    }
+  });
+
+  it('continues doctor checks when one provider throws', async () => {
+    const throwingProvider: ReviewProvider = {
+      id: 'codexDelegate',
+      capabilities: () => ({
+        jsonSchemaOutput: true,
+        reasoningControl: false,
+        streaming: false,
+      }),
+      doctor: async () => {
+        throw new Error('doctor failure');
+      },
+      run: async () => ({ raw: null, text: '' }),
+    };
+
+    const healthyProvider: ReviewProvider = {
+      id: 'openaiCompatible',
+      capabilities: () => ({
+        jsonSchemaOutput: true,
+        reasoningControl: false,
+        streaming: false,
+      }),
+      doctor: async () => [
+        {
+          code: 'provider_unavailable',
+          ok: true,
+          severity: 'info',
+          detail: 'openai available',
+        } satisfies ProviderDiagnostic,
+      ],
+      run: async () => ({ raw: null, text: '' }),
+    };
+
+    const checks = await runDoctorChecks({
+      codexDelegate: throwingProvider,
+      openaiCompatible: healthyProvider,
+    });
+
+    const keys = checks.map((check) => check.name);
+    expect(keys).toContain('provider.codexDelegate.doctor');
+    expect(keys).toContain('provider.openaiCompatible.provider_unavailable');
+    const doctorFailure = checks.find(
+      (check) => check.name === 'provider.codexDelegate.doctor'
+    );
+    expect(doctorFailure?.ok).toBe(false);
+    expect(doctorFailure?.detail).toContain('doctor failure');
   });
 });

@@ -64,8 +64,22 @@ describe('sandbox policy and budget enforcement', () => {
         policy,
       })
     ).rejects.toThrow('blocked by sandbox policy');
-    expect(createMock).toHaveBeenCalledTimes(1);
-    expect(stopMock).toHaveBeenCalledTimes(1);
+    expect(createMock).toHaveBeenCalledTimes(0);
+    expect(stopMock).toHaveBeenCalledTimes(0);
+  });
+
+  it('fails fast when staging files escapes sandbox root', async () => {
+    const policy = createDefaultPolicy();
+
+    await expect(
+      runInSandbox({
+        files: [{ path: '../etc/passwd', content: Buffer.from('root:x') }],
+        commands: [{ cmd: 'git', args: ['--version'], cwd: '/vercel/sandbox' }],
+        policy,
+      })
+    ).rejects.toThrow('file path escapes sandbox root');
+    expect(createMock).toHaveBeenCalledTimes(0);
+    expect(stopMock).toHaveBeenCalledTimes(0);
   });
 
   it('fails fast when command count exceeds budget', async () => {

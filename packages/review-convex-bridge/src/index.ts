@@ -34,6 +34,22 @@ export type MirrorReadPayload = {
   completedAt: number;
 };
 
+function isMirrorReadPayload(value: unknown): value is MirrorReadPayload {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  const candidate = value as Record<string, unknown>;
+  return (
+    typeof candidate.reviewId === 'string' &&
+    typeof candidate.provider === 'string' &&
+    typeof candidate.model === 'string' &&
+    typeof candidate.findingsCount === 'number' &&
+    typeof candidate.overallCorrectness === 'string' &&
+    typeof candidate.summary === 'string' &&
+    typeof candidate.completedAt === 'number'
+  );
+}
+
 export type ConvexBridgeHealth = {
   enabled: boolean;
   reachable: boolean;
@@ -95,10 +111,10 @@ export class ConvexMetadataBridge {
       const result = await this.client.query(this.readFunctionName, {
         reviewId,
       });
-      if (!result || typeof result !== 'object') {
+      if (!isMirrorReadPayload(result)) {
         return null;
       }
-      return result as MirrorReadPayload;
+      return result;
     } catch (error) {
       console.warn(
         `[review-convex-bridge] non-blocking mirror read failed: ${String(error)}`

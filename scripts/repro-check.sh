@@ -10,29 +10,62 @@ pnpm install --frozen-lockfile
 echo "[repro] Running full checks"
 pnpm check
 
-echo "[repro] Building workspace (pass 1)"
-pnpm build
+WORKSPACE_ROOTS=()
+if [[ -d apps ]]; then
+  WORKSPACE_ROOTS+=("apps")
+fi
+if [[ -d packages ]]; then
+  WORKSPACE_ROOTS+=("packages")
+fi
+if [[ ${#WORKSPACE_ROOTS[@]} -eq 0 ]]; then
+  echo "[repro] ERROR: expected workspace roots (apps and/or packages)" >&2
+  exit 1
+fi
+
+HASH_TOOL="sha256sum"
+HASH_TOOL_ARGS=()
+if ! command -v "$HASH_TOOL" >/dev/null 2>&1; then
+  if command -v shasum >/dev/null 2>&1; then
+    HASH_TOOL="shasum"
+    HASH_TOOL_ARGS=("-a" "256")
+  else
+    echo "[repro] ERROR: no supported SHA-256 tool found (sha256sum or shasum required)" >&2
+    exit 1
+  fi
+fi
+
+run_build() {
+  local label="$1"
+
+  echo "[repro] Cleaning dist directories before ${label}"
+  for root in "${WORKSPACE_ROOTS[@]}"; do
+    find "$root" -type d -name dist -prune -exec rm -rf {} +
+  done
+
+  echo "[repro] Building workspace (${label})"
+  pnpm turbo run build --force
+}
 
 hash_dist_tree() {
-  if ! find apps packages -type d -name dist | grep -q .; then
-    echo "no-dist"
-    return
+  if ! find "${WORKSPACE_ROOTS[@]}" -type d -name dist | grep -q .; then
+    echo "[repro] ERROR: no dist directories found after build" >&2
+    return 1
   fi
 
-  find apps packages -type d -name dist -print0 \
+  find "${WORKSPACE_ROOTS[@]}" -type d -name dist -print0 \
     | xargs -0 -I{} find "{}" -type f -print0 \
     | sort -z \
-    | xargs -0 sha256sum \
-    | sha256sum \
+    | xargs -0 "$HASH_TOOL" "${HASH_TOOL_ARGS[@]}" \
+    | awk '{ print $1 }' \
+    | "$HASH_TOOL" "${HASH_TOOL_ARGS[@]}" \
     | awk '{ print $1 }'
 }
 
+run_build "pass 1"
 FIRST_HASH="$(hash_dist_tree)"
 echo "[repro] pass1 hash: $FIRST_HASH"
 
-echo "[repro] Building workspace (pass 2, forced)"
-pnpm turbo run build --force
-
+run_build "pass 2"
 SECOND_HASH="$(hash_dist_tree)"
 echo "[repro] pass2 hash: $SECOND_HASH"
 

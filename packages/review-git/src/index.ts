@@ -164,6 +164,9 @@ async function buildUntrackedFilePatch(
 
   const text = bytes.toString('utf8');
   const lines = text.split(/\r?\n/);
+  if (lines.at(-1) === '') {
+    lines.pop();
+  }
   const body = lines.map((line) => `+${line}`).join('\n');
   const hunkLineCount = lines.length;
   return [
@@ -344,13 +347,12 @@ export async function collectDiffForTarget(
           mergeBaseSha,
         ]);
       } else {
-        patch = await runGit(
-          cwd,
-          ['diff', '--no-color', '--binary', target.branch],
-          {
-            allowExitCodes: [0, 128],
-          }
-        );
+        patch = await runGit(cwd, [
+          'diff',
+          '--no-color',
+          '--binary',
+          target.branch,
+        ]);
       }
       const context: GitContext = {
         mode: 'baseBranch',

@@ -15,6 +15,9 @@ import type {
 
 const execFileAsync = promisify(execFile);
 
+const CODEX_DOCTOR_TIMEOUT_MS = 10_000;
+const CODEX_REVIEW_TIMEOUT_MS = 5 * 60_000;
+
 function targetToArgs(target: ReviewTarget): string[] {
   switch (target.type) {
     case 'uncommittedChanges':
@@ -76,6 +79,7 @@ export class CodexDelegateProvider implements ReviewProvider {
       await execFileAsync(this.codexBin, ['--version'], {
         encoding: 'utf8',
         maxBuffer: 1024 * 1024,
+        timeout: CODEX_DOCTOR_TIMEOUT_MS,
       });
       diagnostics.push({
         code: 'provider_unavailable',
@@ -158,6 +162,7 @@ export class CodexDelegateProvider implements ReviewProvider {
         cwd: input.request.cwd,
         encoding: 'utf8',
         maxBuffer: 16 * 1024 * 1024,
+        timeout: CODEX_REVIEW_TIMEOUT_MS,
       });
 
       const outputText = (
