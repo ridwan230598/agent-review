@@ -177,7 +177,11 @@ export class CodexDelegateProvider implements ReviewProvider {
         raw = null;
       }
 
-      return { raw, text };
+      return {
+        raw,
+        text,
+        resolvedModel: input.request.model ?? 'codexDelegate:default',
+      };
     } catch (error) {
       const err = error as NodeJS.ErrnoException & {
         stderr?: string | Buffer;

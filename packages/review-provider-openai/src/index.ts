@@ -102,6 +102,19 @@ export class OpenAICompatibleReviewProvider implements ReviewProvider {
 
   validateRequest(input: ReviewProviderValidationInput): ProviderDiagnostic[] {
     const diagnostics: ProviderDiagnostic[] = [];
+    if (input.request.reasoningEffort) {
+      diagnostics.push({
+        code: 'unsupported_reasoning_effort',
+        ok: false,
+        severity: 'error',
+        detail:
+          'openaiCompatible does not currently accept reasoning-effort controls',
+        remediation:
+          'Omit --reasoning-effort until provider support is implemented.',
+      });
+      return diagnostics;
+    }
+
     const resolvedModelId = input.request.model ?? this.defaultModelId;
     const separator = resolvedModelId.indexOf(':');
     if (separator < 1 || separator === resolvedModelId.length - 1) {
@@ -230,6 +243,7 @@ export class OpenAICompatibleReviewProvider implements ReviewProvider {
     return {
       raw: output,
       text: JSON.stringify(output),
+      resolvedModel: resolvedModelId,
     };
   }
 }

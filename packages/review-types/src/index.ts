@@ -217,6 +217,7 @@ export type ReviewProviderRunInput = {
 export type ReviewProviderRunOutput = {
   raw: unknown;
   text: string;
+  resolvedModel?: string;
 };
 
 export interface ReviewProvider {

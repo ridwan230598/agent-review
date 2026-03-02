@@ -1,5 +1,4 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { basename } from 'node:path';
 import {
   type DiffChunk,
   type DiffContext,
@@ -449,7 +448,10 @@ export async function runReview(
     overallConfidenceScore: normalized.overallConfidenceScore,
     metadata: {
       provider: request.provider,
-      modelResolved: request.model ?? `${provider.id}:${basename(request.cwd)}`,
+      modelResolved:
+        providerOutput.resolvedModel ??
+        request.model ??
+        `${provider.id}:default`,
       executionMode: request.executionMode,
       promptPack: REVIEW_PROMPT_PACK_ID,
       gitContext: diff.gitContext,
